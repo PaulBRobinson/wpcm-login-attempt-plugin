@@ -39,6 +39,9 @@ class LoginAttemptMailer {
 		if(!isset($this->options['lam_notify']))
 			return;
 
+		if(!isset($this->options['lam_notify_email']))
+			return;
+
 		if(!isset($this->options['lam_mailgun_key']) || !isset($this->options['lam_mailgun_domain']))
 			return;
 
@@ -46,11 +49,19 @@ class LoginAttemptMailer {
 		$blog = get_bloginfo( 'name' );
 		$time = date('r');
 
+		//Figure out sitename
+		$sitename = strtolower( $_SERVER['SERVER_NAME'] );
+		if ( substr( $sitename, 0, 4 ) == 'www.' ) {
+		    $sitename = substr( $sitename, 4 );
+		}
+
+		$from = 'no-reply@' . $sitename;
+
 		//The login failed so let's send an email
 		$mg = new Mailgun($this->key);
 		$mg->sendMessage($this->domain, [
-			'from'		=>	'no-reply@return-true.com',
-			'to'		=>	'pablorobinson@gmail.com',
+			'from'		=>	$from,
+			'to'		=>	$this->options['lam_notify_email'],
 			'subject'	=>	"Failed Login Attempt on '{$blog}' @ {$time}",
 			'text'		=>	"Someone has tried to login to '{$blog}' at {$time} with the username '{$username}'."
 		]);
@@ -64,7 +75,7 @@ class LoginAttemptMailer {
 
 	public function lam_settings_init() { 
 
-		register_setting( 'lam_options', 'lam_settings' );
+		register_setting( 'lam_options', 'lam_settings', array( $this, 'lam_sanitize_options' ) );
 
 		add_settings_section(
 			'lam_options_section', 
@@ -97,6 +108,14 @@ class LoginAttemptMailer {
 			'lam_options_section'
 		);
 
+		add_settings_field(
+			'lam_notify_email',
+			__( 'Email Address to Notify', 'lam_trans' ),
+			array( $this, 'lam_notify_email_render' ),
+			'lam_options',
+			'lam_options_section'
+		);
+
 	}
 
 	public function lam_notify_render() { 
@@ -123,9 +142,37 @@ class LoginAttemptMailer {
 
 	}
 
+	public function lam_notify_email_render() {
+
+		?>
+		<input type='email' name='lam_settings[lam_notify_email]' value='<?php echo isset($this->options['lam_notify_email']) ? $this->options['lam_notify_email'] : ''; ?>'>
+		<?php
+
+	}
+
 	public function lam_settings_section_render() { 
 
 		echo __( 'Check the box below to be notified when a visitor fails to login.', 'lam_trans' );
+
+	}
+
+	public function lam_sanitize_options($input) {
+
+		foreach( $input as $key => $value ) :
+
+			if($key == 'lam_notify_email') {
+				if(empty($value)) {
+					add_settings_error( 'lam_notify_email', 'lam_notify_email', 'Email notification address cannot be empty', 'error' );
+				} else {
+					$output[$key] = sanitize_email( $value );
+				}
+			} else {
+				$output[$key] = strip_tags( stripslashes( $input[$key] ) );	
+			}
+
+		endforeach;
+
+		return $output;
 
 	}
 
@@ -150,10 +197,16 @@ class LoginAttemptMailer {
 	}
 
 	public function lam_check_api() {
-		if(isset($this->options['lam_mailgun_key']) && isset($this->options['lam_mailgun_domain'])) :
+		if(isset($this->options['lam_notify']) && isset($this->options['lam_mailgun_key']) && isset($this->options['lam_mailgun_domain'])) :
+
 			$mg = new MailGun($this->options['lam_mailgun_key']);
 			try {
 				$mg->get("{$this->options['lam_mailgun_domain']}/log");
+				?>
+				<div class="updated">
+					<p>Credentials Correct. Connection to Mailgun successful.</p>
+				</div>
+				<?php
 			} catch(InvalidCredentials $e) {
 				?>
 				<div class="error">
