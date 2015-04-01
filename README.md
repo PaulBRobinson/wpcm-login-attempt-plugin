@@ -17,6 +17,12 @@ Pretty simple. Just clone into a folder in your WordPress plugin's directory usi
 git clone https://github.com/Nabesaka/wpcm-login-attempt-plugin.git login-attempt
 ```
 
+Then get dependancies using
+
+```sh
+composer install
+```
+
 Active via the plugins screen then go to Settings -> Login Attempt Mailer to enable & enter your Mailgun API key, Domain & the email address the notifications should be sent to.
 
 ### License
