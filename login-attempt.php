@@ -58,8 +58,8 @@ class LoginAttemptMailer {
 		$from = 'no-reply@' . $sitename;
 
 		//The login failed so let's send an email
-		$mg = new Mailgun($this->key);
-		$mg->sendMessage($this->domain, [
+		$mg = new Mailgun($this->options['lam_mailgun_key']);
+		$mg->sendMessage($this->options['lam_mailgun_domain'], [
 			'from'		=>	$from,
 			'to'		=>	$this->options['lam_notify_email'],
 			'subject'	=>	"Failed Login Attempt on '{$blog}' @ {$time}",
@@ -167,7 +167,7 @@ class LoginAttemptMailer {
 					$output[$key] = sanitize_email( $value );
 				}
 			} else {
-				$output[$key] = strip_tags( stripslashes( $input[$key] ) );	
+				$output[$key] = sanitize_text_field( $input[$key] );	
 			}
 
 		endforeach;
